@@ -1,3 +1,4 @@
+import sys
 import time
 import pygame
 from selenium import webdriver
@@ -9,6 +10,18 @@ class Iranmodares:
     def __init__(self, profile_path):
         self.profile_path = profile_path
         self.driver = self.init_driver()
+
+    def wait_until_ready(self,time_count):
+        countdown_time = time_count
+
+        for remaining in range(countdown_time, 0, -1):
+            minutes = remaining // 60
+            seconds = remaining % 60
+            sys.stdout.write(f"\rزمان باقی‌مانده: {minutes} دقیقه و {seconds} ثانیه ")
+            sys.stdout.flush()
+            time.sleep(1)
+
+        print("\nزمان به پایان رسید!")
 
     def init_driver(self):
         chrome_options = Options()
@@ -65,7 +78,7 @@ class Iranmodares:
                 self.go_to_update()
                 input("⚠️ Enter the captcha and press Enter..")
                 print("⏳ Waiting for the next 30 minutes.")
-                time.sleep(1300)
+                self.wait_until_ready(1300)
 
             except Exception as e:
                 print("❌ Error: ", e)
