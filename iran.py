@@ -77,8 +77,8 @@ class Iranmodares:
 
                 self.go_to_update()
                 input("⚠️ Enter the captcha and press Enter..")
-                print("⏳ Waiting for the next 30 minutes.")
-                self.wait_until_ready(1300)
+                print("⏳ Waiting for the next Queue")
+                self.wait_until_ready(120)
 
             except Exception as e:
                 print("❌ Error: ", e)
