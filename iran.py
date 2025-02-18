@@ -17,11 +17,11 @@ class Iranmodares:
         for remaining in range(countdown_time, 0, -1):
             minutes = remaining // 60
             seconds = remaining % 60
-            sys.stdout.write(f"\rزمان باقی‌مانده: {minutes} دقیقه و {seconds} ثانیه ")
+            sys.stdout.write(f"\r  Remind: {minutes} : {seconds} ")
             sys.stdout.flush()
             time.sleep(1)
 
-        print("\nزمان به پایان رسید!")
+        print("\n Ohh okay countdown time done!")
 
     def init_driver(self):
         chrome_options = Options()
