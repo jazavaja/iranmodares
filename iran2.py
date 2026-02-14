@@ -27,16 +27,21 @@ class Iranmodares:
 
     def init_browser(self):
         self.playwright = sync_playwright().start()
+
         self.browser = self.playwright.chromium.launch_persistent_context(
             user_data_dir=self.profile_path,
             headless=False,
             proxy=None,
+            args=["--no-proxy-server"],
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.5938.132 Safari/537.36"
         )
 
 
         self.page = self.browser.pages[0] if self.browser.pages else self.browser.new_page()
 
+        self.page.goto("https://api.ipify.org")
+        print("IP shown in browser:", self.page.content())
+        time.sleep(1)
     def doLogin(self):
         login_form = self.page.locator('form').filter(has_text="ورود به کنترل پنل")
 
