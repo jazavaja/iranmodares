@@ -25,41 +25,13 @@ class Iranmodares:
 
     def bring_to_front(self):
         """
-        Force the tab (and the OS window, on Windows) to the foreground
-        so the captcha is impossible to miss even if you're on another
-        window/app at the time.
+        Bring the tab to the front within the browser itself.
+        Safe and simple - doesn't touch OS-level windows.
         """
         try:
             self.page.bring_to_front()
         except Exception as e:
             print(f"⚠️ Could not bring tab to front: {e}")
-
-        # bring_to_front() only raises the tab within the browser, not the
-        # OS window itself. On Windows we also force the whole window up.
-        if sys.platform == "win32":
-            try:
-                import win32gui
-                import win32con
-
-                title = self.page.title()
-                hwnd = win32gui.FindWindow(None, title)
-                if not hwnd:
-                    # title may include " - Google Chrome" suffix etc,
-                    # fall back to partial match search
-                    def _enum_handler(h, results):
-                        if win32gui.IsWindowVisible(h) and title[:20] in win32gui.GetWindowText(h):
-                            results.append(h)
-                    matches = []
-                    win32gui.EnumWindows(_enum_handler, matches)
-                    hwnd = matches[0] if matches else None
-
-                if hwnd:
-                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                    win32gui.SetForegroundWindow(hwnd)
-            except ImportError:
-                print("ℹ️ Install 'pywin32' (pip install pywin32) to force the OS window forward too.")
-            except Exception as e:
-                print(f"⚠️ Could not force OS window forward: {e}")
 
     def play_sound(self):
         pygame.mixer.init()
@@ -122,9 +94,18 @@ class Iranmodares:
 
     def close(self):
         if self.browser:
-            self.browser.close()
+            try:
+                self.browser.close()
+            except Exception as e:
+                print(f"ℹ️ Browser was already closed: {e}")
         if self.playwright:
-            self.playwright.stop()
+            try:
+                self.playwright.stop()
+            except Exception as e:
+                print(f"ℹ️ Playwright already stopped: {e}")
+        self.browser = None
+        self.playwright = None
+        self.page = None
 
     # ---------- actions ----------
 
