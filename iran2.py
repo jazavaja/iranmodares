@@ -1,5 +1,6 @@
 import sys
 import time
+import re
 import pygame
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
@@ -138,6 +139,64 @@ class Iranmodares:
             print("The button was not found for updating, so we need to wait.")
             return False
 
+    def get_wait_seconds_from_page(self):
+        """
+        Reads the site's own status text on the update page, e.g.:
+          "امکان به روز رسانی هر 20 دقیقه یکبار فعال می باشد"
+          "آخرین به روز رسانی شما 19 دقیقه پیش"
+        and calculates exactly how many seconds are left until the
+        button unlocks, instead of guessing with a fixed poll interval.
+        Returns seconds remaining (int) or None if it can't parse the text.
+        """
+        try:
+            page_text = self.page.locator("body").inner_text()
+        except Exception:
+            return None
+
+        interval_match = re.search(r'هر\s*(\d+)\s*دقیقه', page_text)
+        elapsed_match = re.search(r'(\d+)\s*دقیقه\s*پیش', page_text)
+
+        if not interval_match or not elapsed_match:
+            return None
+
+        interval_minutes = int(interval_match.group(1))
+        elapsed_minutes = int(elapsed_match.group(1))
+        remaining_minutes = interval_minutes - elapsed_minutes
+
+        if remaining_minutes <= 0:
+            return 0
+
+        # small buffer: "19 دقیقه پیش" could mean anywhere from 19:00 to
+        # 19:59 elapsed, plus a little slack for page/network delay
+        buffer_seconds = 45
+        return remaining_minutes * 60 + buffer_seconds
+
+    def wait_for_update_button(self, poll_interval=60, max_wait=1500):
+        """
+        Instead of restarting the whole login/navigation flow every few
+        seconds when the update button isn't available yet, read the
+        site's own countdown text and wait exactly that long. Falls back
+        to a fixed poll_interval only if the text can't be parsed.
+        """
+        elapsed = 0
+        while elapsed <= max_wait:
+            if self.go_to_update():
+                return True
+
+            smart_wait = self.get_wait_seconds_from_page()
+            if smart_wait is not None:
+                minutes, seconds = divmod(smart_wait, 60)
+                print(f"⏳ Site says update unlocks in ~{minutes}m {seconds}s. Waiting exactly that long.")
+                self.wait_until_ready(smart_wait)
+                elapsed += smart_wait
+            else:
+                print(f"⏳ Couldn't read exact remaining time from page, rechecking in {poll_interval}s")
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+        print("❌ Update button never became available within max_wait, giving up this cycle.")
+        return False
+
     def run(self):
         while True:
             try:
@@ -159,8 +218,8 @@ class Iranmodares:
                         time.sleep(5)
                         continue
 
-                if not self.go_to_update():
-                    time.sleep(5)
+                if not self.wait_for_update_button():
+                    time.sleep(30)
                     continue
 
                 self.bring_to_front()
