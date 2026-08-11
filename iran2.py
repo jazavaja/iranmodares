@@ -223,6 +223,9 @@ class Iranmodares:
                     continue
 
                 self.bring_to_front()
+                # گرفتن اسکرین شات کپچا
+                # self.save_captcha()
+
                 input("⚠️ Enter the captcha and press Enter..")
                 print("⏳ Waiting for the next Queue")
                 self.wait_until_ready(1250)
@@ -232,6 +235,22 @@ class Iranmodares:
                 self.close()
                 self.init_browser()
 
+    def save_captcha(self):
+        try:
+            captcha = self.page.locator("img.item1")
+
+            captcha.wait_for(
+                state="visible",
+                timeout=5000
+            )
+
+            captcha.screenshot(
+                path="captcha.png"
+            )
+
+            print("✅ Captcha screenshot saved")
+        except Exception as e:
+            print("❌ Captcha screenshot failed:", e)
 
 if __name__ == '__main__':
     profile_path = r"C:\path\to\custom\profile"
