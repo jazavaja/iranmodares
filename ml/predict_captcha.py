@@ -131,6 +131,40 @@ def split_characters(image_path):
 # Prepare character
 # =========================
 
+def resize_and_center(img, size=IMAGE_SIZE):
+
+    h, w = img.shape
+
+    scale = min(
+        (size - 4) / w,
+        (size - 4) / h
+    )
+
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+
+    resized = cv2.resize(
+        img,
+        (new_w, new_h),
+        interpolation=cv2.INTER_AREA
+    )
+
+    canvas = np.zeros(
+        (size, size),
+        dtype=np.uint8
+    )
+
+    x = (size - new_w) // 2
+    y = (size - new_h) // 2
+
+    canvas[
+        y:y + new_h,
+        x:x + new_w
+    ] = resized
+
+    return canvas
+
+
 def prepare_character(char):
 
     # تبدیل به uint8
@@ -138,14 +172,9 @@ def prepare_character(char):
         np.uint8
     )
 
-
-    # تبدیل به PIL لازم نیست؛
-    # مستقیماً با OpenCV resize می‌کنیم
-
-    char = cv2.resize(
+    char = resize_and_center(
         char,
-        (IMAGE_SIZE, IMAGE_SIZE),
-        interpolation=cv2.INTER_AREA
+        IMAGE_SIZE
     )
 
 
@@ -189,16 +218,10 @@ def predict_captcha(image_path):
     )
 
 
-    print(
-        "Detected characters:",
-        len(characters)
-    )
-
-
     result = ""
 
 
-    for i, char in enumerate(characters):
+    for char in characters:
 
         tensor = prepare_character(
             char
@@ -223,17 +246,9 @@ def predict_captcha(image_path):
             ).item()
 
 
-        letter = classes[
+        result += classes[
             prediction
         ]
-
-
-        result += letter
-
-
-        print(
-            f"Character {i + 1}: {letter}"
-        )
 
 
     return result
@@ -288,22 +303,8 @@ def predict_single_character(image_path):
 # =========================
 
 if __name__ == "__main__":
-    result = predict_single_character(
-        "../data/dataset/test/M/000159_1.png"
+    result = predict_captcha(
+        "../data/raw/images/001532.png"
     )
 
     print("Prediction:", result)
-
-
-    # =======================
-
-
-    # result = predict_captcha(
-    #     IMAGE_PATH
-    # )
-    #
-    #
-    # print()
-    # print("======================")
-    # print("CAPTCHA:", result)
-    # print("======================")

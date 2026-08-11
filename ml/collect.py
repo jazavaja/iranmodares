@@ -124,7 +124,7 @@ if __name__ == "__main__":
 
     start = get_next_index()
 
-    total = 500
+    total = 10
 
     for i in range(start, start + total):
 
