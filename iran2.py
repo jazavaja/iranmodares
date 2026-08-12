@@ -2,6 +2,9 @@ import sys
 import time
 import re
 import pygame
+import os
+import csv
+from datetime import datetime
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 
@@ -40,19 +43,17 @@ class Iranmodares:
         sound.play()
         pygame.time.delay(int(sound.get_length() * 1000))
 
-    def safe_goto(self, url, retries=3, nav_timeout=15000):
+    def safe_goto(self, url, retries=3, nav_timeout=30000):
         """
         Go to a URL without waiting for full page load.
-        domcontentloaded fires as soon as the DOM is parsed and the
-        elements we care about are usually interactable well before
-        the 'load' event (images/fonts/ads finish loading).
-        Retries only the navigation itself instead of restarting
-        the whole browser.
+        Uses 'commit' (response headers received) for fastest navigation,
+        then waits for key elements to be visible.
         """
         last_err = None
         for attempt in range(1, retries + 1):
             try:
-                self.page.goto(url, wait_until="domcontentloaded", timeout=nav_timeout)
+                # Use 'commit' - fastest, only waits for response headers
+                self.page.goto(url, wait_until="commit", timeout=nav_timeout)
                 return True
             except PlaywrightTimeoutError as e:
                 last_err = e
@@ -123,7 +124,7 @@ class Iranmodares:
         return True
 
     def go_to_update(self):
-        if not self.safe_goto('https://www.iranmodares.com/ControlPanel/advertisement.php?p=4'):
+        if not self.safe_goto('https://www.iranmodares.com/ControlPanel/advertisement.php?p=4', nav_timeout=30000):
             return False
 
         print("Finding Link Update...")
@@ -198,10 +199,20 @@ class Iranmodares:
         return False
 
     def run(self):
+        from ml.predict_captcha import predict_captcha
+
+        # Setup captures folder and CSV log
+        captures_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
+        os.makedirs(captures_dir, exist_ok=True)
+        csv_path = os.path.join(captures_dir, "captcha_log.csv")
+        if not os.path.exists(csv_path):
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["timestamp", "filename", "prediction", "result", "attempt"])
+
         while True:
             try:
                 if not self.safe_goto('https://www.iranmodares.com/common-index.php?p=4'):
-                    # navigation kept failing, short cooldown then retry the loop
                     time.sleep(5)
                     continue
 
@@ -223,19 +234,94 @@ class Iranmodares:
                     continue
 
                 self.bring_to_front()
-                # گرفتن اسکرین شات کپچا
-                # self.save_captcha()
 
-                input("⚠️ Enter the captcha and press Enter..")
-                print("⏳ Waiting for the next Queue")
+                captcha_solved = False
+                max_retries = 5
+
+                for attempt in range(1, max_retries + 1):
+                    print(f"🔄 Captcha solve attempt {attempt}/{max_retries}")
+
+                    # Save captcha with timestamped filename
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+                    captcha_filename = f"captcha_{timestamp}.png"
+                    captcha_path = os.path.join(captures_dir, captcha_filename)
+
+                    try:
+                        self.save_captcha(captcha_path)
+                    except Exception as e:
+                        print(f"⚠️ Captcha screenshot failed, retrying... ({e})")
+                        time.sleep(1)
+                        continue
+
+                    text = predict_captcha(captcha_path)
+                    print(f"🔮 Predicted: {text}")
+
+                    captcha_input = self.page.locator('input[name="imagecode"]')
+                    if self.wait_for_clickable(captcha_input, timeout=5000):
+                        captcha_input.first.fill(text)
+                        print("✅ Captcha filled")
+
+                    submit_btn = self.page.locator('input[type="submit"].button')
+                    if self.wait_for_clickable(submit_btn, timeout=5000):
+                        submit_btn.first.click()
+                        print("✅ Submit clicked")
+
+                    # Wait for page response
+                    time.sleep(2)
+
+                    # Check if captcha was solved (form gone, captcha image gone)
+                    captcha_form = self.page.locator('form[name="f"]')
+                    captcha_img = self.page.locator("img.item1")
+
+                    form_visible = False
+                    img_visible = False
+
+                    try:
+                        form_visible = captcha_form.count() > 0 and captcha_form.first.is_visible(timeout=1000)
+                    except:
+                        form_visible = False
+
+                    try:
+                        img_visible = captcha_img.count() > 0 and captcha_img.first.is_visible(timeout=1000)
+                    except:
+                        img_visible = False
+
+                    if not form_visible and not img_visible:
+                        # Success: both form and captcha image are gone
+                        print("✅ Captcha solved successfully! Form and captcha image disappeared.")
+                        self._log_captcha(csv_path, timestamp, captcha_filename, text, "success", attempt)
+                        captcha_solved = True
+                        break
+                    elif form_visible and img_visible:
+                        # Failure: both still visible - wrong prediction
+                        print("⚠️ Form and captcha still visible, prediction was wrong. Retrying...")
+                        self._log_captcha(csv_path, timestamp, captcha_filename, text, "fail", attempt)
+                    else:
+                        # Ambiguous state - log and treat as fail to be safe
+                        print(f"⚠️ Ambiguous state (form_visible={form_visible}, img_visible={img_visible}). Treating as fail.")
+                        self._log_captcha(csv_path, timestamp, captcha_filename, text, "ambiguous", attempt)
+
+                if not captcha_solved:
+                    print("❌ Max retries reached. Going back to advertisement page.")
+                    time.sleep(2)
+                    continue
+
+                print("⏳ Waiting for the next Queue (20 min)")
                 self.wait_until_ready(1250)
 
             except Exception as e:
-                print("❌ Error: ", e)
-                self.close()
-                self.init_browser()
+                print("❌ Error in main loop:", e)
+                # Don't restart browser, just go back to advertisement page
+                print("🔄 Returning to advertisement page...")
+                time.sleep(3)
+                continue
 
-    def save_captcha(self):
+    def _log_captcha(self, csv_path, timestamp, filename, prediction, result, attempt):
+        with open(csv_path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([timestamp, filename, prediction, result, attempt])
+
+    def save_captcha(self, save_path="captcha.png"):
         try:
             captcha = self.page.locator("img.item1")
 
@@ -244,13 +330,25 @@ class Iranmodares:
                 timeout=5000
             )
 
-            captcha.screenshot(
-                path="captcha.png"
-            )
-
-            print("✅ Captcha screenshot saved")
+            # Get bounding box and use page.screenshot with clip - doesn't wait for fonts
+            box = captcha.bounding_box(timeout=2000)
+            if box:
+                self.page.screenshot(
+                    path=save_path,
+                    clip={
+                        "x": box["x"],
+                        "y": box["y"],
+                        "width": box["width"],
+                        "height": box["height"]
+                    },
+                    timeout=3000
+                )
+                print(f"✅ Captcha screenshot saved: {save_path}")
+            else:
+                raise Exception("Could not get captcha bounding box")
         except Exception as e:
             print("❌ Captcha screenshot failed:", e)
+            raise
 
 if __name__ == '__main__':
     profile_path = r"C:\path\to\custom\profile"

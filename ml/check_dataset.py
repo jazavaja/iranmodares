@@ -7,7 +7,7 @@ DATASET_DIR = "../data/processed/chars"
 
 counter = Counter()
 
-
+print("__ ",os.listdir(DATASET_DIR))
 for letter in os.listdir(DATASET_DIR):
 
     folder = os.path.join(

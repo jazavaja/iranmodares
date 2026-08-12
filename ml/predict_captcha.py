@@ -2,16 +2,19 @@ import cv2
 import torch
 import numpy as np
 
-from model import CharCNN
+from .model import CharCNN
 
 
 # =========================
 # Settings
 # =========================
 
-MODEL_PATH = "char_cnn.pth"
+import os
 
-IMAGE_PATH = "../data/raw/images/000001.png"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "char_cnn.pth")
+
+IMAGE_PATH = os.path.join(BASE_DIR, "..", "data", "raw", "images", "000001.png")
 
 IMAGE_SIZE = 28
 
