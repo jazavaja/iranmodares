@@ -12,6 +12,7 @@ from config import (
     ADVERTISEMENT_URL,
     SELECTORS,
     DEFAULT_NAV_TIMEOUT,
+    CAPTCHA_PAGE_LOAD_TIMEOUT,
 )
 
 
@@ -84,7 +85,12 @@ class Navigator:
 
         if self.wait_for_clickable(submit_button, timeout=10000):
             submit_button.first.click()
-            print("✅ We clicked Go to Update, now you must resolve captcha.")
+            print("✅ We clicked Go to Update, waiting for captcha page...")
+            try:
+                self.page.wait_for_load_state("load", timeout=CAPTCHA_PAGE_LOAD_TIMEOUT)
+                print("✅ Captcha page loaded.")
+            except PlaywrightTimeoutError:
+                print("⚠️ Page load slow — captcha solver will keep waiting.")
             return True
         else:
             print("The button was not found for updating, so we need to wait.")
