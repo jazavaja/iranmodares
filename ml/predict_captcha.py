@@ -307,7 +307,7 @@ def predict_single_character(image_path):
 
 if __name__ == "__main__":
     result = predict_captcha(
-        "../data/raw/images/001532.png"
+        "../captures/captcha_20260812_222320_039.png"
     )
 
     print("Prediction:", result)
