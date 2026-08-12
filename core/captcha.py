@@ -65,32 +65,34 @@ class CaptchaSolver:
 
     def save_captcha(self, save_path: str) -> bool:
         """
-        Capture captcha via page.screenshot + clip on img.item1 bounding box.
-        Same method as iran2.py (commit 6f16ab0) — matches training data format.
+        استخراج پیکسل‌های تصویر جاری از حافظه DOM مرورگر بدون ارسال درخواست مجدد به سرور
         """
         try:
             captcha = self.page.locator(SELECTORS["captcha_image"])
             captcha.wait_for(state="visible", timeout=CAPTCHA_PAGE_LOAD_TIMEOUT)
 
-            box = captcha.bounding_box(timeout=10000)
-            if not box:
-                raise Exception("Could not get captcha bounding box")
+            # خواندن بایت‌های تصویر مستقیم از حافظه مرورگر با Canvas
+            base64_data = captcha.evaluate("""
+                (img) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || 100;
+                    canvas.height = img.naturalHeight || 20;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    return canvas.toDataURL('image/png').split(',')[1];
+                }
+            """)
 
-            self.page.screenshot(
-                path=save_path,
-                clip={
-                    "x": box["x"],
-                    "y": box["y"],
-                    "width": box["width"],
-                    "height": box["height"],
-                },
-                timeout=CAPTCHA_SCREENSHOT_TIMEOUT,
-            )
-            print(f"✅ Captcha screenshot saved: {save_path}")
+            import base64
+            image_bytes = base64.b64decode(base64_data)
+            with open(save_path, "wb") as f:
+                f.write(image_bytes)
+
+            print(f"✅ Captcha raw image extracted from DOM: {save_path}")
             return True
 
         except Exception as e:
-            print(f"❌ Captcha screenshot failed: {e}")
+            print(f"❌ Captcha DOM extraction failed: {e}")
             return False
 
     def fill_and_submit(self, text: str) -> bool:

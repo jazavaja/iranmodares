@@ -13,3 +13,4 @@ timestamp,filename,prediction,result,attempt,REAL
 20260812_222347_392,captcha_20260812_222347_392.png,MCIVF,fail,1
 20260812_222349_779,captcha_20260812_222349_779.png,NXYP,fail,2
 20260812_222420_903,captcha_20260812_222420_903.png,ZJI,fail,1
+20260813_011439_567,captcha_20260813_011439_567.png,XEWEN,ambiguous,1
