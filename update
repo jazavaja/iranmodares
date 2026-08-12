@@ -1,0 +1,22 @@
+فقط ی تغییر کوچک وقتی کپچا حل میشه میبایست بره دیگ متوجه بشه ولی گیر میکنه اینجا
+Finding Link Update...
+✅ We clicked Go to Update, waiting for captcha page...
+✅ Captcha page loaded.
+⏳ Waiting for captcha page to fully load (up to 120s)...
+✅ Captcha page ready
+🔄 Captcha solve attempt 1/10
+✅ Captcha raw image extracted from DOM: C:\Projects\modares\captures\captcha_20260813_011439_567.png
+🔮 Predicted: XEWEN
+✅ Captcha filled
+✅ Submit clicked
+⚠️ Captcha ambiguous. Retrying...
+🔄 Captcha solve attempt 2/10
+❌ Captcha DOM extraction failed: Locator.wait_for: Timeout 120000ms exceeded.
+Call log:
+  - waiting for locator("img.item1") to be visible
+
+⚠️ Captcha screenshot failed, retrying...
+🔄 Captcha solve attempt 3/10
+
+
+همون بار اول اتفاقا اکی شد ولی گیر میکنه اینو فقط باید حل کنم
