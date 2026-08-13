@@ -117,32 +117,36 @@ class CaptchaSolver:
     def check_solved(self) -> tuple[bool, str]:
         """
         Check if captcha was solved successfully.
-        Returns: (is_solved, status) where status is 'success', 'fail', or 'ambiguous'
+
+        Success:
+            .form-confirm containing the success message is visible.
+
+        Fail:
+            Success message is not found.
         """
+
         time.sleep(POST_SUBMIT_WAIT)
 
-        captcha_form = self.page.locator(SELECTORS["captcha_form"])
-        captcha_img = self.page.locator(SELECTORS["captcha_image"])
-
-        form_visible = False
-        img_visible = False
+        success_message = self.page.locator(
+            "div.form-confirm"
+        )
 
         try:
-            form_visible = captcha_form.count() > 0 and captcha_form.first.is_visible(timeout=VISIBILITY_CHECK_TIMEOUT)
-        except Exception:
-            form_visible = False
+            if success_message.count() > 0 and success_message.first.is_visible(
+                    timeout=VISIBILITY_CHECK_TIMEOUT
+            ):
+                text = success_message.first.inner_text().strip()
 
-        try:
-            img_visible = captcha_img.count() > 0 and captcha_img.first.is_visible(timeout=VISIBILITY_CHECK_TIMEOUT)
-        except Exception:
-            img_visible = False
+                print(f"✅ Success message found: {text}")
 
-        if not form_visible and not img_visible:
-            return True, "success"
-        elif form_visible and img_visible:
-            return False, "fail"
-        else:
-            return False, "ambiguous"
+                return True, "success"
+
+        except Exception:
+            pass
+
+        print("❌ Success message not found")
+
+        return False, "fail"
 
     def solve(self) -> bool:
         """

@@ -397,21 +397,3 @@ def predict_single_character(image_path):
         ).item()
 
     return classes[prediction]
-
-
-
-# =========================
-# Main
-# =========================
-
-if __name__ == "__main__":
-    TEST_IMAGE = os.path.join(
-        BASE_DIR,
-        "..",
-        "captures",
-        "captcha_20260813_003921_446.png"
-    )
-
-    result = predict_captcha(TEST_IMAGE)
-
-    print("Prediction:", result)
