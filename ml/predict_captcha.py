@@ -96,10 +96,27 @@ def split_characters(image_path, debug=False, debug_dir=None):
     if img is None:
         raise FileNotFoundError(f"Image not found: {image_path}")
 
-    # ۱. استخراج منطقه اصلی و تبدیل به ۱۰۰x۲۰ (مطابق داده آموزش)
-    processed_img = crop_captcha_roi(img)
+    # ذخیره تصویر اصلی
+    if debug and debug_dir:
+        os.makedirs(debug_dir, exist_ok=True)
+        cv2.imwrite(f"{debug_dir}/00_original.png", img)
 
-    # ۲. آستانه‌گذاری روی تصویر استانداردهای شده ۱۰۰x۲۰
+    # =========================
+    # روش جدید: مستقیماً resize به ۱۰۰x۲۰ (همون روش تست موفق)
+    # =========================
+    processed_img = cv2.resize(
+        img,
+        (100, 20),
+        interpolation=cv2.INTER_AREA
+    )
+
+    # ذخیره بعد از resize
+    if debug and debug_dir:
+        cv2.imwrite(f"{debug_dir}/01_resized.png", processed_img)
+
+    # =========================
+    # آستانه‌گذاری
+    # =========================
     _, thresh = cv2.threshold(
         processed_img,
         150,
@@ -107,6 +124,13 @@ def split_characters(image_path, debug=False, debug_dir=None):
         cv2.THRESH_BINARY_INV
     )
 
+    # ذخیره بعد از threshold
+    if debug and debug_dir:
+        cv2.imwrite(f"{debug_dir}/02_threshold.png", thresh)
+
+    # =========================
+    # پیدا کردن کانتورها
+    # =========================
     contours, _ = cv2.findContours(
         thresh,
         cv2.RETR_EXTERNAL,
@@ -116,122 +140,34 @@ def split_characters(image_path, debug=False, debug_dir=None):
     boxes = []
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
-        # فیلتر کردن نویزهای کوچک بر اساس ابعاد استاندارد ۲۰x۱۰۰
+        # فیلتر کردن نویزهای کوچک
         if h > 5 and w >= 2:
             boxes.append((x, y, w, h))
 
     # مرتب‌سازی باکس‌ها از چپ به راست
     boxes.sort(key=lambda box: box[0])
 
+    # ذخیره تصویر با باکس‌ها
+    if debug and debug_dir:
+        debug_img = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+        for x, y, w, h in boxes:
+            cv2.rectangle(debug_img, (x, y), (x + w, y + h), (0, 255, 0), 1)
+        cv2.imwrite(f"{debug_dir}/03_boxes.png", debug_img)
+
+        with open(f"{debug_dir}/04_info.txt", "w") as f:
+            f.write(f"Number of boxes detected: {len(boxes)}\n")
+            for i, (x, y, w, h) in enumerate(boxes):
+                f.write(f"Box {i}: x={x}, y={y}, w={w}, h={h}\n")
+
     characters = []
-    for x, y, w, h in boxes:
-        char = thresh[y:y+h, x:x+w]
+    for i, (x, y, w, h) in enumerate(boxes):
+        char = thresh[y:y + h, x:x + w]
         characters.append(char)
 
+        if debug and debug_dir:
+            cv2.imwrite(f"{debug_dir}/char_{i}.png", char)
+
     return characters
-
-# def split_characters(image_path):
-#
-#     img = cv2.imread(
-#         image_path,
-#         cv2.IMREAD_GRAYSCALE
-#     )
-#
-#     if img is None:
-#         raise FileNotFoundError(
-#             f"Image not found: {image_path}"
-#         )
-#
-#     # =========================
-#     # Production image → Training size
-#     # 192×72 → 100×20
-#     # =========================
-#
-#     print("Original size:", img.shape)
-#     cv2.imwrite(
-#         "debug_production.png",
-#         img
-#     )
-#     img = cv2.resize(
-#         img,
-#         (100, 20),
-#         interpolation=cv2.INTER_AREA
-#     )
-#     cv2.imwrite(
-#         "debug_production22.png",
-#         img
-#     )
-#
-#     print("Resized size:", img.shape)
-#
-#     # =========================
-#     # Threshold
-#     # =========================
-#
-#     _, thresh = cv2.threshold(
-#         img,
-#         150,
-#         255,
-#         cv2.THRESH_BINARY_INV
-#     )
-#
-#     # =========================
-#     # Find contours
-#     # =========================
-#
-#     contours, _ = cv2.findContours(
-#         thresh,
-#         cv2.RETR_EXTERNAL,
-#         cv2.CHAIN_APPROX_SIMPLE
-#     )
-#
-#
-#     boxes = []
-#
-#
-#     for contour in contours:
-#
-#         x, y, w, h = cv2.boundingRect(
-#             contour
-#         )
-#
-#
-#         # حذف نویز
-#         if h > 5 and w > 2:
-#
-#             boxes.append(
-#                 (x, y, w, h)
-#             )
-#
-#     # چپ به راست
-#     boxes.sort(
-#         key=lambda box: box[0]
-#     )
-#
-#     print("Detected characters:", len(boxes))
-#
-#     characters = []
-#
-#
-#     for x, y, w, h in boxes:
-#
-#         char = thresh[
-#             y:y+h,
-#             x:x+w
-#         ]
-#
-#
-#         characters.append(
-#             char
-#         )
-#
-#
-#     return characters
-
-
-# =========================
-# Prepare character
-# =========================
 
 def resize_and_center(img, size=IMAGE_SIZE):
 
