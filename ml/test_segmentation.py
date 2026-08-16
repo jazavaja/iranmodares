@@ -2,7 +2,7 @@ import cv2
 import os
 
 
-IMAGE_PATH = "../data/raw/images/000001.png"
+IMAGE_PATH = "../captures/captcha_20260816_220358_909.png"
 DEBUG_DIR = "../debug"
 
 os.makedirs(DEBUG_DIR, exist_ok=True)
